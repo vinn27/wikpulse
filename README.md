@@ -1,5 +1,7 @@
 # WikiPulse 📡
 
+![pipeline](https://github.com/vinn27/wikpulse/actions/workflows/pipeline.yml/badge.svg)
+
 Live analytics on Wikipedia edits — what's being edited, by whom, and how fast, right now.
 
 **Architecture (serverless micro-batch, runs on free tiers):**
@@ -22,6 +24,22 @@ Dashboard (Next.js on Vercel) — live URL
 Scheduled by GitHub Actions (public repo = free minutes). Secrets live in
 Actions, never in code.
 
-**Status:** Phase 1 — pipeline working locally. CI schedule + dashboard next.
+**Status:** Phase 2 — pipeline runs itself on GitHub Actions.
 
-See `.env.example` for required configuration.
+## How it runs
+
+A [scheduled GitHub Actions workflow](.github/workflows/pipeline.yml) fires
+every 10 minutes on GitHub's free runners (public repo = free minutes): it
+pulls the last 15 minutes of en-wiki edits (the extra 5 minutes absorb GitHub's
+cron jitter — duplicate edits are dropped by `rcid`), publishes them to
+Redpanda, and aggregates with PySpark into Neon. Both scripts exit non-zero on
+failure, so a broken run shows red in the Actions history rather than failing
+silently.
+
+Honesty notes: GitHub cron runs can lag by several minutes at busy times, so
+"every 10 minutes" is approximate; and a monthly
+[keepalive workflow](.github/workflows/keepalive.yml) stops GitHub from
+auto-disabling the schedule after 60 days of repo inactivity.
+
+See `.env.example` for required configuration (CI reads the same values from
+encrypted repo secrets).
