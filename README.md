@@ -2,7 +2,7 @@
 
 ![pipeline](https://github.com/vinn27/wikpulse/actions/workflows/pipeline.yml/badge.svg)
 
-**🖥️ Live dashboard: https://wikpulse-vinit-s.vercel.app**
+**🖥️ Live dashboard: https://wikpulse-live.netlify.app**
 
 Live analytics on Wikipedia edits — what's being edited, by whom, and how fast, right now.
 

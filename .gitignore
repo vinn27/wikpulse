@@ -5,3 +5,6 @@ __pycache__/
 *.key
 .ipynb_checkpoints/
 *.log
+
+# Local Netlify folder
+.netlify
