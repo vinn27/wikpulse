@@ -2,6 +2,8 @@
 
 ![pipeline](https://github.com/vinn27/wikpulse/actions/workflows/pipeline.yml/badge.svg)
 
+**🖥️ Live dashboard: https://wikpulse-vinit-s.vercel.app**
+
 Live analytics on Wikipedia edits — what's being edited, by whom, and how fast, right now.
 
 **Architecture (serverless micro-batch, runs on free tiers):**
@@ -18,13 +20,15 @@ src/aggregator.py
    └─ upsert into Neon Postgres (edit_windows, top_pages)
         │
         ▼
-Dashboard (Next.js on Vercel) — live URL
+dashboard/ (Next.js on Vercel) — reads Neon via a SELECT-only role;
+Power BI-style UX: slicers, minute→hour→day drilldown, click-to-cross-filter,
+focus mode, auto-refresh
 ```
 
 Scheduled by GitHub Actions (public repo = free minutes). Secrets live in
 Actions, never in code.
 
-**Status:** Phase 2 — pipeline runs itself on GitHub Actions.
+**Status:** Phase 3 — end-to-end: automated pipeline + live dashboard.
 
 ## How it runs
 

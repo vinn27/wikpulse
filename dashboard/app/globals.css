@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/* WikiPulse dashboard tokens — Power BI-inspired chrome (canvas/tiles/yellow accent)
+   with dataviz-validated series colors (see components for marks). */
+:root {
+  --canvas: #f3f2f1;        /* page plane */
+  --tile: #ffffff;          /* card surface */
+  --accent: #f2c811;        /* Power BI yellow — chrome only, never a series color */
+  --ink: #0b0b0b;           /* primary text */
+  --ink-2: #52514e;         /* secondary text */
+  --muted: #898781;         /* axis/labels */
+  --grid: #e1e0d9;          /* hairline gridlines */
+  --baseline: #c3c2b7;      /* axis line */
+  --hairline: rgba(11, 11, 11, 0.1);
+  --series-human: #118dff;  /* validated PBI blue */
+  --series-bot: #e66c37;    /* validated PBI orange */
+  --good: #006300;          /* delta up (text) */
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-tile: var(--tile);
+  --color-accent: var(--accent);
+  --color-ink: var(--ink);
+  --color-ink2: var(--ink-2);
+  --color-mutedc: var(--muted);
+  --color-serieshuman: var(--series-human);
+  --color-seriesbot: var(--series-bot);
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Power BI-style card */
+.tile {
+  background: var(--tile);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* segmented slicer button */
+.seg {
+  border-radius: 4px;
+  font-size: 12.5px;
+  padding: 4px 12px;
+  color: var(--ink-2);
+  transition: background 120ms ease;
+}
+.seg:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+.seg[data-active="true"] {
+  background: var(--ink);
+  color: #fff;
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+
+/* thin scrollbars for table panes */
+.thin-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: var(--baseline);
+  border-radius: 4px;
+}
