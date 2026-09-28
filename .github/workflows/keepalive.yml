@@ -6,7 +6,7 @@ name: keepalive
 
 on:
   schedule:
-    - cron: "0 4 1 * *" # 1st of every month
+    - cron: "13 4 1 * *" # 1st of every month (off-peak minute)
   workflow_dispatch:
 
 jobs:
