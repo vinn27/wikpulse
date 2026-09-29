@@ -87,3 +87,30 @@ export const GRAIN_MS: Record<Grain, number> = {
   hour: 3_600_000,
   day: 86_400_000,
 };
+
+// aggregate hourly page rows up to one row per page
+export function aggregatePages(rows: PageRow[]): Array<{ title: string; edits: number; netBytes: number }> {
+  const m = new Map<string, { title: string; edits: number; netBytes: number }>();
+  for (const r of rows) {
+    const cur = m.get(r.title) ?? { title: r.title, edits: 0, netBytes: 0 };
+    cur.edits += r.edits;
+    cur.netBytes += r.netBytes;
+    m.set(r.title, cur);
+  }
+  return [...m.values()];
+}
+
+// client-side CSV download (Excel-friendly)
+export function downloadCsv(filename: string, headers: string[], rows: Array<Array<string | number>>): void {
+  const esc = (v: string | number) => {
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [headers, ...rows].map((r) => r.map(esc).join(",")).join("\r\n");
+  const url = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}

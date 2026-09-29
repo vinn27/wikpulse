@@ -11,6 +11,8 @@ import PagesTable from "@/components/PagesTable";
 import FocusOverlay from "@/components/FocusOverlay";
 import {
   RANGES,
+  aggregatePages,
+  downloadCsv,
   editsFor,
   fmtInt,
   fmtPct,
@@ -69,6 +71,27 @@ export default function Dashboard() {
     const id = setInterval(fetchData, 30_000);
     return () => clearInterval(id);
   }, [fetchData]);
+
+  // shareable filter state: read ?range=&aud= on load, keep URL in sync after
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const r = q.get("range");
+    const a = q.get("aud");
+    if (r && RANGES_WITH_ALL.some((x) => x.id === r)) setRangeId(r as RangeIdAll);
+    if (a === "all" || a === "human" || a === "bot") setAudience(a);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    window.history.replaceState(null, "", `?range=${rangeId}&aud=${audience}`);
+  }, [rangeId, audience]);
+
+  // Esc clears the cross-filter selection, like Power BI
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSel(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const range = RANGES_WITH_ALL.find((r) => r.id === rangeId) ?? RANGES[1];
 
@@ -206,6 +229,7 @@ export default function Dashboard() {
   }
 
   const dataAsOf = new Date(view.nowMs).toLocaleTimeString("en-GB");
+  const agoMin = Math.max(0, Math.round((Date.now() - view.nowMs) / 60_000));
   // data-freshness guard: warn loudly instead of silently blanking
   const newestMinute = data.minutes.length ? Date.parse(data.minutes[data.minutes.length - 1].t) : 0;
   const staleMin = Math.round((view.nowMs - newestMinute) / 60_000);
@@ -249,8 +273,19 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="text-right text-xs" style={{ color: "var(--muted)" }}>
+          <div className="mb-1.5">
+            <a
+              href="/guide"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="seg inline-block no-underline"
+              style={{ background: "var(--ink)", color: "#fff", boxShadow: "inset 0 -3px 0 var(--accent)" }}
+            >
+              ⓘ Dashboard info ↗
+            </a>
+          </div>
           <div>
-            Data as of {dataAsOf} · auto-refresh 30s {refreshing && "· refreshing…"}
+            Data as of {dataAsOf} ({agoMin} min ago) · auto-refresh 30s {refreshing && "· refreshing…"}
           </div>
           <a
             className="hover:underline"
@@ -370,6 +405,20 @@ export default function Dashboard() {
               </div>
               <button
                 className="rounded px-1.5 py-1 text-sm hover:bg-black/5"
+                aria-label="Download chart data as CSV"
+                title="Download this data as CSV"
+                onClick={() =>
+                  downloadCsv(
+                    `wikpulse_${view.grain}s_${new Date().toISOString().slice(0, 16).replace("T", "_")}.csv`,
+                    ["bucket_utc", "human_edits", "bot_edits", "total_edits", "unique_editors", "new_pages"],
+                    view.rows.map((r) => [r.t, r.human, r.bot, r.edits, r.editors, r.newPages]),
+                  )
+                }
+              >
+                ⬇ CSV
+              </button>
+              <button
+                className="rounded px-1.5 py-1 text-sm hover:bg-black/5"
                 aria-label="Expand chart (focus mode)"
                 title="Focus mode"
                 onClick={() => setFocus("chart")}
@@ -407,6 +456,22 @@ export default function Dashboard() {
                 ranked by human edits · net bytes = added − removed (green = page grew)
               </span>
             </h2>
+            <button
+              className="rounded px-1.5 py-1 text-sm hover:bg-black/5"
+              aria-label="Download pages data as CSV"
+              title="Download this table as CSV"
+              onClick={() =>
+                downloadCsv(
+                  `wikpulse_hottest_pages_${new Date().toISOString().slice(0, 16).replace("T", "_")}.csv`,
+                  ["page", "human_edits", "net_bytes"],
+                  aggregatePages(view.pages)
+                    .sort((a, b) => b.edits - a.edits)
+                    .map((p) => [p.title, p.edits, p.netBytes]),
+                )
+              }
+            >
+              ⬇ CSV
+            </button>
             <button
               className="rounded px-1.5 py-1 text-sm hover:bg-black/5"
               aria-label="Expand table (focus mode)"

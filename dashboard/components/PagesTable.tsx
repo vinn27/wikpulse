@@ -3,7 +3,7 @@
 // Hottest-pages table: zebra rows, tabular numerals in columns,
 // sortable headers, search box, Wikipedia deep links.
 import { useMemo, useState } from "react";
-import { fmtBytes, fmtInt, type PageRow } from "@/lib/dashboard";
+import { aggregatePages, fmtBytes, fmtInt, type PageRow } from "@/lib/dashboard";
 
 type SortKey = "edits" | "netBytes";
 
@@ -21,17 +21,7 @@ export default function PagesTable({
   const [sort, setSort] = useState<SortKey>("edits");
   const [dir, setDir] = useState<"asc" | "desc">("desc");
 
-  const aggregated = useMemo(() => {
-    const m = new Map<string, { title: string; edits: number; netBytes: number; last: string }>();
-    for (const r of rows) {
-      const cur = m.get(r.title) ?? { title: r.title, edits: 0, netBytes: 0, last: r.hour };
-      cur.edits += r.edits;
-      cur.netBytes += r.netBytes;
-      if (r.hour > cur.last) cur.last = r.hour;
-      m.set(r.title, cur);
-    }
-    return [...m.values()];
-  }, [rows]);
+  const aggregated = useMemo(() => aggregatePages(rows), [rows]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
