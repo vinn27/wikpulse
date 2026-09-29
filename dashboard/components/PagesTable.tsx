@@ -126,7 +126,9 @@ export default function PagesTable({
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-3 py-6 text-center" style={{ color: "var(--muted)" }}>
-                  No pages match the current filters.
+                  {rows.length === 0
+                    ? "No page data in this time window — the pipeline may be behind; try a wider range."
+                    : "No pages match your search."}
                 </td>
               </tr>
             )}

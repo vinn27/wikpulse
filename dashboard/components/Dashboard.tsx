@@ -31,11 +31,18 @@ const AUDIENCES: Array<{ id: Audience; label: string }> = [
   { id: "bot", label: "Bots" },
 ];
 
+const RANGES_WITH_ALL = [
+  ...RANGES,
+  { id: "all" as const, label: "All data", mins: 10080 },
+];
+
+type RangeIdAll = RangeId | "all";
+
 export default function Dashboard() {
   const [data, setData] = useState<Payload | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [rangeId, setRangeId] = useState<RangeId>("3h");
+  const [rangeId, setRangeId] = useState<RangeIdAll>("3h");
   const [audience, setAudience] = useState<Audience>("all");
   const [drill, setDrill] = useState<Grain | null>(null);
   const [sel, setSel] = useState<Selection>(null);
@@ -63,7 +70,7 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [fetchData]);
 
-  const range = RANGES.find((r) => r.id === rangeId)!;
+  const range = RANGES_WITH_ALL.find((r) => r.id === rangeId) ?? RANGES[1];
 
   // reset a drill level that has no data at the current range
   useEffect(() => {
@@ -140,33 +147,37 @@ export default function Dashboard() {
 
     const tiles: Tile[] = [
       {
-        label: `${audience === "all" ? "" : audience + " "}Edits in range`,
+        label: "Total edits",
         value: fmtInt(total),
         delta: total - prevTotal,
         deltaPct: prevTotal ? ((total - prevTotal) / prevTotal) * 100 : undefined,
-        sub: `vs previous ${range.label.toLowerCase()}`,
+        sub: `in selected range · vs previous ${range.label.replace("Last ", "").toLowerCase()}`,
         upIsGood: true,
         spark,
+        hint: `Every edit to English Wikipedia articles in the selected window (${audience === "all" ? "people + bots" : audience === "human" ? "people only" : "bots only"}).`,
       },
       {
         label: "Human share of edits",
         value: editsTotal ? fmtPct((humanTotal / editsTotal) * 100) : "—",
-        sub: "rest is automated (bots)",
+        sub: "the rest is automated bots",
         spark: rows.slice(-12).map((r) => (r.edits ? (r.human / r.edits) * 100 : 0)),
+        hint: "Bots do a large share of Wikipedia's cleanup work — a healthy mix is typically 50–80% human.",
       },
       {
-        label: "Editor activity",
+        label: "Active editors",
         value: fmtInt(sum(rows, (r) => r.editors)),
-        sub: "unique editors summed per bucket",
+        sub: "distinct editors per bucket, summed",
+        hint: "Each bucket counts its own distinct editors, then buckets are added — so the same editor active in many minutes counts multiple times. Read it as engagement volume, not unique people.",
       },
       {
-        label: "New pages created",
+        label: "New articles created",
         value: fmtInt(sum(rows, (r) => r.newPages)),
-        sub: "first-time articles",
+        sub: "first-time pages, not edits",
+        hint: "Brand-new Wikipedia articles published in the window.",
       },
     ];
 
-    return { rows, grain, tiles, pages, effSel, nowMs };
+    return { rows, grain, tiles, pages, effSel, nowMs, total, editsTotal, humanTotal };
   }, [data, range, audience, sel, drill]);
 
   const onBucketClick = useCallback(
@@ -199,6 +210,24 @@ export default function Dashboard() {
   const newestMinute = data.minutes.length ? Date.parse(data.minutes[data.minutes.length - 1].t) : 0;
   const staleMin = Math.round((view.nowMs - newestMinute) / 60_000);
   const isStale = newestMinute === 0 || staleMin > 15;
+  const lastWriteLabel = newestMinute
+    ? new Date(newestMinute).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+    : "never";
+
+  // auto-written summary — a BA should get the story from this one line
+  const coveredMin = view.rows.length > 1
+    ? Math.max(1, Math.round((Date.parse(view.rows[view.rows.length - 1].t) - Date.parse(view.rows[0].t)) / 60_000))
+    : 0;
+  const editsPerMin = coveredMin ? Math.round(view.total / coveredMin) : 0;
+  const humanPct = view.editsTotal ? Math.round((view.humanTotal / view.editsTotal) * 100) : 0;
+  const busiest = view.rows.reduce<Row | null>(
+    (m, r) => (!m || editsFor(r, audience) > editsFor(m, audience) ? r : m),
+    null,
+  );
+  const topPage = view.pages.reduce<{ title: string; edits: number } | null>(
+    (m, p) => (!m || p.edits > m.edits ? { title: p.title, edits: p.edits } : m),
+    null,
+  );
 
   return (
     <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-5">
@@ -259,8 +288,8 @@ export default function Dashboard() {
         style={{ opacity: refreshing ? 0.7 : 1 }}
       >
         <div className="flex items-center gap-1" role="group" aria-label="Time range">
-          {RANGES.map((r) => (
-            <button key={r.id} className="seg" data-active={r.id === rangeId} onClick={() => setRangeId(r.id)}>
+          {RANGES_WITH_ALL.map((r) => (
+            <button key={r.id} className="seg" data-active={r.id === rangeId} onClick={() => setRangeId(r.id as RangeIdAll)}>
               {r.label}
             </button>
           ))}
@@ -285,14 +314,39 @@ export default function Dashboard() {
 
       {/* everything below re-renders against the same slice; hold previous render while refreshing */}
       <div className="transition-opacity duration-200" style={{ opacity: refreshing ? 0.6 : 1 }}>
+        {/* smart-narrative summary */}
+        <div className="tile mb-3 px-4 py-3 text-[13px]" style={{ borderLeft: "4px solid var(--accent)" }}>
+          {view.rows.length === 0 ? (
+            <span style={{ color: "var(--ink-2)" }}>
+              📌 <strong>No data in this window</strong> — the pipeline last wrote at {lastWriteLabel}. Widen the
+              time range (try <em>All data</em>) to see what has been collected so far.
+            </span>
+          ) : (
+            <span>
+              📌 <strong>{fmtInt(view.total)} edits</strong> across {fmtInt(coveredMin)} minutes of data —{" "}
+              about <strong>{editsPerMin} edits/min</strong>, <strong>{humanPct}% by humans</strong>.
+              {busiest && (
+                <>
+                  {" "}Busiest {view.grain}: <strong>{fullLabel(busiest.t, view.grain)}</strong> ({fmtInt(editsFor(busiest, audience))} edits).
+                </>
+              )}
+              {topPage && (
+                <>
+                  {" "}Most-edited page: <strong>{topPage.title}</strong> ({fmtInt(topPage.edits)} edits).
+                </>
+              )}
+            </span>
+          )}
+        </div>
+
         <KpiTiles tiles={view.tiles} />
 
         <section className="tile mt-3 p-4">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold">
-              Edits per {view.grain}
+              Edit volume over time
               <span className="ml-2 font-normal text-xs" style={{ color: "var(--muted)" }}>
-                human vs bot
+                each column = one {view.grain} · blue = people, orange = bots · click a column to filter
               </span>
             </h2>
             <div className="flex items-center gap-3">
@@ -324,13 +378,25 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
-          <TrendChart
-            rows={view.rows}
-            grain={view.grain}
-            audience={audience}
-            selectedLabel={view.effSel?.label ?? null}
-            onBucketClick={onBucketClick}
-          />
+          {view.rows.length === 0 ? (
+            <div
+              className="flex h-[280px] flex-col items-center justify-center rounded text-center"
+              style={{ border: "1px dashed var(--grid)", color: "var(--muted)" }}
+            >
+              <div className="text-sm font-medium">No edits recorded in this window</div>
+              <div className="mt-1 text-xs">
+                Pipeline last wrote at {lastWriteLabel} — widen the range (try “All data”)
+              </div>
+            </div>
+          ) : (
+            <TrendChart
+              rows={view.rows}
+              grain={view.grain}
+              audience={audience}
+              selectedLabel={view.effSel?.label ?? null}
+              onBucketClick={onBucketClick}
+            />
+          )}
         </section>
 
         <section className="tile mt-3 p-4">
@@ -338,7 +404,7 @@ export default function Dashboard() {
             <h2 className="text-sm font-semibold">
               Hottest pages
               <span className="ml-2 font-normal text-xs" style={{ color: "var(--muted)" }}>
-                most-edited articles (human edits)
+                ranked by human edits · net bytes = added − removed (green = page grew)
               </span>
             </h2>
             <button
@@ -352,6 +418,39 @@ export default function Dashboard() {
           </div>
           <PagesTable rows={view.pages} search={search} onSearch={setSearch} />
         </section>
+
+        {/* plain-language glossary for business readers */}
+        <details className="tile mt-3 px-4 py-3 text-xs" style={{ color: "var(--ink-2)" }}>
+          <summary className="cursor-pointer text-[13px] font-medium" style={{ color: "var(--ink)" }}>
+            How to read this dashboard
+          </summary>
+          <dl className="mt-3 grid gap-x-8 gap-y-2.5 md:grid-cols-2">
+            <div>
+              <dt className="font-medium" style={{ color: "var(--ink)" }}>What is being measured?</dt>
+              <dd>Every edit made to English Wikipedia articles — public data from Wikipedia's RecentChanges API, collected automatically every 10 minutes.</dd>
+            </div>
+            <div>
+              <dt className="font-medium" style={{ color: "var(--ink)" }}>Human vs bot</dt>
+              <dd>Wikipedia flags automated accounts (bots) that do cleanup, formatting and vandalism patrol. The blue/orange split shows people vs automation.</dd>
+            </div>
+            <div>
+              <dt className="font-medium" style={{ color: "var(--ink)" }}>Hottest pages</dt>
+              <dd>Articles with 2+ human edits in a period, ranked by edit count. Spikes usually mean breaking news or live events.</dd>
+            </div>
+            <div>
+              <dt className="font-medium" style={{ color: "var(--ink)" }}>Net bytes</dt>
+              <dd>Bytes added minus bytes removed. Green = the article grew; red = content was cut (often vandalism removal).</dd>
+            </div>
+            <div>
+              <dt className="font-medium" style={{ color: "var(--ink)" }}>Interactions</dt>
+              <dd>Time buttons set the window; Human/Bots filters every visual; click any column to cross-filter the dashboard (✕ chip clears); ⤢ opens focus mode with the full data table; every column is sortable and searchable.</dd>
+            </div>
+            <div>
+              <dt className="font-medium" style={{ color: "var(--ink)" }}>Under the hood</dt>
+              <dd>A scheduled GitHub Actions job streams edits through Redpanda (Kafka), aggregates 1-minute windows with PySpark, and upserts into Neon Postgres. This page reads Postgres through a read-only key and refreshes every 30 s. If data is old, an amber banner explains why.</dd>
+            </div>
+          </dl>
+        </details>
 
         <footer className="mt-4 pb-3 text-center text-[11px]" style={{ color: "var(--muted)" }}>
           Source: en.wikipedia.org RecentChanges · every 10 min a GitHub Actions job streams edits through Redpanda,

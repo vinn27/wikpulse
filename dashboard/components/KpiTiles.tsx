@@ -9,6 +9,7 @@ export type Tile = {
   label: string;
   value: string;
   sub?: string;
+  hint?: string; // plain-language definition, shown on hover
   delta?: number; // absolute change vs previous period
   deltaPct?: number;
   upIsGood?: boolean;
@@ -50,9 +51,14 @@ export default function KpiTiles({ tiles }: { tiles: Tile[] }) {
         const up = (t.delta ?? 0) >= 0;
         const good = t.upIsGood === undefined ? up : up === t.upIsGood;
         return (
-          <div key={t.label} className="tile px-4 py-3">
-            <div className="text-xs" style={{ color: "var(--ink-2)" }}>
+          <div key={t.label} className="tile px-4 py-3" title={t.hint}>
+            <div className="flex items-center gap-1 text-xs" style={{ color: "var(--ink-2)" }}>
               {t.label}
+              {t.hint && (
+                <span aria-hidden="true" style={{ color: "var(--muted)" }} title={t.hint}>
+                  ⓘ
+                </span>
+              )}
             </div>
             <div className="mt-1 flex items-end justify-between gap-2">
               <div>
