@@ -11,33 +11,24 @@ const H2 = ({ children }: { children: React.ReactNode }) => (
 
 export default function GuidePage() {
   return (
-    <main className="mx-auto w-full max-w-[820px] flex-1 px-5 py-8 text-[14px]" style={{ color: "var(--ink-2)" }}>
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold" style={{ color: "var(--ink)" }}>
-          WikiPulse — Dashboard Guide 📡
-        </h1>
-        <p className="mt-1">
-          Everything you need to read this dashboard in 60 seconds — no data-engineering background required.
-        </p>
-        <div className="mt-3 flex gap-2">
-          <a
-            href="/"
-            className="seg"
-            style={{ background: "var(--ink)", color: "#fff", boxShadow: "inset 0 -3px 0 var(--accent)", textDecoration: "none", display: "inline-block" }}
-          >
+    <>
+      <header style={{ background: "var(--bar)", color: "var(--bar-ink)" }}>
+        <div className="mx-auto flex w-full max-w-[820px] flex-wrap items-center justify-between gap-2 px-5 py-3">
+          <h1 className="text-lg font-semibold tracking-tight">
+            Wiki<span style={{ color: "var(--accent)" }}>Pulse</span>
+            <span className="ml-2 text-xs font-normal" style={{ color: "var(--bar-muted)" }}>
+              Dashboard guide
+            </span>
+          </h1>
+          <a href="/" className="seg-dark inline-block no-underline">
             ← Open the dashboard
-          </a>
-          <a
-            href="https://github.com/vinn27/wikpulse"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="seg"
-            style={{ border: "1px solid var(--grid)", textDecoration: "none", display: "inline-block" }}
-          >
-            Source code ↗
           </a>
         </div>
       </header>
+      <main className="mx-auto w-full max-w-[820px] flex-1 px-5 py-8 text-[14px]" style={{ color: "var(--ink-2)" }}>
+      <p className="mb-6">
+        Everything you need to read this dashboard in 60 seconds — no data-engineering background required.
+      </p>
 
       <H2>What is this?</H2>
       <p>
@@ -170,8 +161,13 @@ Next.js dashboard on Netlify — refreshes every 30 s`}</pre>
 
       <footer className="mt-10 pb-4 text-center text-[11px]" style={{ color: "var(--muted)" }}>
         WikiPulse · built by Vinit Sontakke · 100% free-tier services ·{" "}
+        <a href="https://github.com/vinn27/wikpulse" target="_blank" rel="noopener noreferrer" className="underline">
+          source code
+        </a>{" "}
+        ·{" "}
         <a href="/" className="underline">back to dashboard</a>
       </footer>
-    </main>
+      </main>
+    </>
   );
 }

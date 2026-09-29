@@ -51,8 +51,11 @@ export default function KpiTiles({ tiles }: { tiles: Tile[] }) {
         const up = (t.delta ?? 0) >= 0;
         const good = t.upIsGood === undefined ? up : up === t.upIsGood;
         return (
-          <div key={t.label} className="tile px-4 py-3" title={t.hint}>
-            <div className="flex items-center gap-1 text-xs" style={{ color: "var(--ink-2)" }}>
+          <div key={t.label} className="tile tile-hover px-4 py-3.5" title={t.hint}>
+            <div
+              className="flex items-center gap-1.5 text-[11px] font-medium tracking-wide"
+              style={{ color: "var(--ink-2)" }}
+            >
               {t.label}
               {t.hint && (
                 <span aria-hidden="true" style={{ color: "var(--muted)" }} title={t.hint}>
@@ -60,9 +63,9 @@ export default function KpiTiles({ tiles }: { tiles: Tile[] }) {
                 </span>
               )}
             </div>
-            <div className="mt-1 flex items-end justify-between gap-2">
+            <div className="mt-1.5 flex items-end justify-between gap-2">
               <div>
-                <div className="text-[26px] font-semibold leading-8">{t.value}</div>
+                <div className="text-[28px] font-semibold leading-8 tracking-tight">{t.value}</div>
                 {t.delta !== undefined && (
                   <div
                     className="mt-0.5 text-xs"

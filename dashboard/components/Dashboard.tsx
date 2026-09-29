@@ -254,49 +254,50 @@ export default function Dashboard() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-5">
-      {/* header */}
-      <header className="mb-4 flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold">
-            WikiPulse
-            <span
-              className="flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide"
-              style={{ background: "var(--accent)", color: "var(--ink)" }}
-            >
-              <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-black" />
-              LIVE
-            </span>
-          </h1>
-          <p className="text-xs" style={{ color: "var(--muted)" }}>
-            Wikipedia edits, tracked end-to-end — GitHub Actions → Redpanda (Kafka) → PySpark → Neon → this page
-          </p>
-        </div>
-        <div className="text-right text-xs" style={{ color: "var(--muted)" }}>
-          <div className="mb-1.5">
+    <>
+      {/* dark command bar */}
+      <header style={{ background: "var(--bar)", color: "var(--bar-ink)" }}>
+        <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
+          <div>
+            <h1 className="flex items-center gap-2.5 text-lg font-semibold tracking-tight">
+              Wiki<span style={{ color: "var(--accent)" }}>Pulse</span>
+              <span
+                className="flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold tracking-widest"
+                style={{ background: "var(--accent)", color: "var(--ink)" }}
+              >
+                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-black" />
+                LIVE
+              </span>
+            </h1>
+            <p className="text-[11px]" style={{ color: "var(--bar-muted)" }}>
+              Wikipedia edits, tracked end-to-end — GitHub Actions → Redpanda (Kafka) → PySpark → Neon → this page
+            </p>
+          </div>
+          <div className="text-right text-[11px]" style={{ color: "var(--bar-muted)" }}>
             <a
               href="/guide"
               target="_blank"
               rel="noopener noreferrer"
-              className="seg inline-block no-underline"
-              style={{ background: "var(--ink)", color: "#fff", boxShadow: "inset 0 -3px 0 var(--accent)" }}
+              className="seg-dark inline-block no-underline"
             >
-              ⓘ Dashboard info ↗
+              ⓘ Dashboard guide ↗
+            </a>
+            <div className="mt-1.5">
+              Data as of {dataAsOf} ({agoMin} min ago) · auto-refresh 30s {refreshing && "· refreshing…"}
+            </div>
+            <a
+              className="hover:text-white hover:underline"
+              href="https://github.com/vinn27/wikpulse"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              github.com/vinn27/wikpulse ↗
             </a>
           </div>
-          <div>
-            Data as of {dataAsOf} ({agoMin} min ago) · auto-refresh 30s {refreshing && "· refreshing…"}
-          </div>
-          <a
-            className="hover:underline"
-            href="https://github.com/vinn27/wikpulse"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            github.com/vinn27/wikpulse ↗
-          </a>
         </div>
       </header>
+
+      <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-5">
 
       {isStale && (
         <div
@@ -317,9 +318,9 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* one filter row, above everything it scopes */}
+      {/* one filter row, above everything it scopes — stays visible on scroll */}
       <div
-        className="tile mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 px-3 py-2"
+        className="tile sticky top-2 z-30 mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 px-3 py-2"
         style={{ opacity: refreshing ? 0.7 : 1 }}
       >
         <div className="flex items-center gap-1" role="group" aria-label="Time range">
@@ -378,7 +379,7 @@ export default function Dashboard() {
 
         <section className="tile mt-3 p-4">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold">
+            <h2 className="title-tick text-sm font-semibold">
               Edit volume over time
               <span className="ml-2 font-normal text-xs" style={{ color: "var(--muted)" }}>
                 each column = one {view.grain} · blue = people, orange = bots · click a column to filter
@@ -450,7 +451,7 @@ export default function Dashboard() {
 
         <section className="tile mt-3 p-4">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">
+            <h2 className="title-tick text-sm font-semibold">
               Hottest pages
               <span className="ml-2 font-normal text-xs" style={{ color: "var(--muted)" }}>
                 ranked by human edits · net bytes = added − removed (green = page grew)
@@ -566,6 +567,7 @@ export default function Dashboard() {
           <PagesTable rows={view.pages} search={search} onSearch={setSearch} />
         </FocusOverlay>
       )}
-    </main>
+      </main>
+    </>
   );
 }
