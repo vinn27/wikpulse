@@ -195,6 +195,10 @@ export default function Dashboard() {
   }
 
   const dataAsOf = new Date(view.nowMs).toLocaleTimeString("en-GB");
+  // data-freshness guard: warn loudly instead of silently blanking
+  const newestMinute = data.minutes.length ? Date.parse(data.minutes[data.minutes.length - 1].t) : 0;
+  const staleMin = Math.round((view.nowMs - newestMinute) / 60_000);
+  const isStale = newestMinute === 0 || staleMin > 15;
 
   return (
     <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-5">
@@ -229,6 +233,19 @@ export default function Dashboard() {
           </a>
         </div>
       </header>
+
+      {isStale && (
+        <div
+          className="mb-3 rounded border px-3 py-2 text-xs"
+          style={{ borderColor: "#fab219", background: "#fdf6e3", color: "var(--ink)" }}
+          role="status"
+        >
+          ⚠ <strong>Data is {staleMin} min old</strong> — newest window{" "}
+          {newestMinute ? new Date(newestMinute).toLocaleTimeString("en-GB") : "never"}. The pipeline
+          (GitHub Actions, every 10 min) may be behind or paused; ranges shorter than that gap will
+          look empty.
+        </div>
+      )}
 
       {error && (
         <div className="mb-3 rounded border px-3 py-2 text-xs" style={{ borderColor: "#d03b3b", color: "#d03b3b" }}>

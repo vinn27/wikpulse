@@ -2,9 +2,12 @@ name: pipeline
 
 on:
   schedule:
-    # every 10 min at :07 offsets — round minutes hit GitHub's peak-load
-    # windows where scheduled runs get dropped (never fired as */10)
+    # backup trigger — GitHub's scheduler drops most runs at high load;
+    # the primary trigger is repository_dispatch from an external heartbeat
+    # (cron-job.org -> GitHub API every 10 min)
     - cron: "7,17,27,37,47,57 * * * *"
+  repository_dispatch:
+    types: [tick] # external heartbeat - reliable 10-min cadence
   workflow_dispatch: # manual "Run workflow" button
 
 concurrency:
