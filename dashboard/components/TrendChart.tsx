@@ -1,8 +1,11 @@
 "use client";
 
 // Main trend visual: stacked human+bot edits, thin rounded-end bars,
-// 2px surface gaps between segments, hairline grid, PBI-style tooltip
-// (values lead, line keys), click-to-cross-filter on a whole column.
+// 2px surface gaps, hairline grid, PBI-style tooltip (values lead, line
+// keys), click-to-cross-filter on a whole column.
+// Long ranges scroll sideways (min px per bucket keeps bars readable) and
+// auto-scroll to the newest bucket on the right.
+import { useEffect, useRef } from "react";
 import {
   Bar,
   BarChart,
@@ -67,6 +70,9 @@ function PbiTooltip({
   );
 }
 
+// minimum horizontal room per bucket, per grain — bars never get crushed
+const SLOT_PX: Record<Grain, number> = { minute: 16, hour: 44, day: 72 };
+
 export default function TrendChart({
   rows,
   grain,
@@ -85,67 +91,82 @@ export default function TrendChart({
   const showHuman = audience !== "bot";
   const showBot = audience !== "human";
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const lastT = rows.length ? rows[rows.length - 1].t : "";
+  const innerWidth = rows.length * SLOT_PX[grain];
+
+  // jump to the newest data (right edge) whenever the window or grain changes
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [lastT, rows.length, grain]);
+
   return (
     <div>
-      <ResponsiveContainer width="100%" height={height}>
-        <BarChart
-          data={rows}
-          margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-          onClick={(s: unknown) => {
-            const st = s as { activePayload?: ReadonlyArray<{ payload?: Row }> };
-            const row = st.activePayload?.[0]?.payload;
-            if (row && onBucketClick) onBucketClick(row);
-          }}
-        >
-          <CartesianGrid vertical={false} stroke="var(--grid)" strokeWidth={1} />
-          <XAxis
-            dataKey="t"
-            tickFormatter={(v: string) => bucketLabel(v, grain)}
-            tickLine={false}
-            axisLine={{ stroke: "var(--baseline)", strokeWidth: 1 }}
-            tick={{ fill: "var(--muted)", fontSize: 11 }}
-            minTickGap={28}
-          />
-          <YAxis
-            tickFormatter={(v: number) => fmtCompact(v)}
-            tickLine={false}
-            axisLine={false}
-            tick={{ fill: "var(--muted)", fontSize: 11 }}
-            width={40}
-          />
-          <Tooltip
-            content={<PbiTooltip grain={grain} />}
-            cursor={{ fill: "rgba(0,0,0,0.05)" }}
-            isAnimationActive={false}
-          />
-          {showBot && (
-            <Bar
-              dataKey="bot"
-              name="Bots"
-              stackId="e"
-              fill="var(--series-bot)"
-              stroke="#fff"
-              strokeWidth={2}
-              maxBarSize={24}
-              radius={audience === "bot" ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-            />
-          )}
-          {showHuman && (
-            <Bar
-              dataKey="human"
-              name="Human"
-              stackId="e"
-              fill="var(--series-human)"
-              stroke="#fff"
-              strokeWidth={2}
-              maxBarSize={24}
-              radius={[4, 4, 0, 0]}
-            />
-          )}
-        </BarChart>
-      </ResponsiveContainer>
+      <div ref={scrollRef} className="thin-scroll overflow-x-auto pb-1">
+        <div style={{ minWidth: Math.max(innerWidth, 600) }}>
+          <ResponsiveContainer width="100%" height={height}>
+            <BarChart
+              data={rows}
+              margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+              onClick={(s: unknown) => {
+                const st = s as { activePayload?: ReadonlyArray<{ payload?: Row }> };
+                const row = st.activePayload?.[0]?.payload;
+                if (row && onBucketClick) onBucketClick(row);
+              }}
+            >
+              <CartesianGrid vertical={false} stroke="var(--grid)" strokeWidth={1} />
+              <XAxis
+                dataKey="t"
+                tickFormatter={(v: string) => bucketLabel(v, grain)}
+                tickLine={false}
+                axisLine={{ stroke: "var(--baseline)", strokeWidth: 1 }}
+                tick={{ fill: "var(--muted)", fontSize: 11 }}
+                minTickGap={38}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                tickFormatter={(v: number) => fmtCompact(v)}
+                tickLine={false}
+                axisLine={false}
+                tick={{ fill: "var(--muted)", fontSize: 11 }}
+                width={40}
+              />
+              <Tooltip
+                content={<PbiTooltip grain={grain} />}
+                cursor={{ fill: "rgba(0,0,0,0.05)" }}
+                isAnimationActive={false}
+              />
+              {showBot && (
+                <Bar
+                  dataKey="bot"
+                  name="Bots"
+                  stackId="e"
+                  fill="var(--series-bot)"
+                  stroke="#fff"
+                  strokeWidth={2}
+                  maxBarSize={24}
+                  radius={audience === "bot" ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                />
+              )}
+              {showHuman && (
+                <Bar
+                  dataKey="human"
+                  name="Human"
+                  stackId="e"
+                  fill="var(--series-human)"
+                  stroke="#fff"
+                  strokeWidth={2}
+                  maxBarSize={24}
+                  radius={[4, 4, 0, 0]}
+                />
+              )}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
 
-      {/* legend (always present for 2 series) + hint */}
+      {/* legend (always present for 2 series) + hints */}
       <div className="mt-1 flex flex-wrap items-center gap-4 text-xs" style={{ color: "var(--ink-2)" }}>
         {showHuman && (
           <span className="flex items-center gap-1.5">
@@ -167,6 +188,11 @@ export default function TrendChart({
             : "Values also listed in the table below"}
         </span>
       </div>
+      {innerWidth > 900 && (
+        <div className="mt-0.5 text-right text-[11px]" style={{ color: "var(--muted)" }}>
+          chart scrolls sideways — oldest data on the left, newest on the right →
+        </div>
+      )}
     </div>
   );
 }

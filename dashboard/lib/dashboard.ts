@@ -72,6 +72,12 @@ export function editsFor(r: Row, audience: Audience): number {
 export function bucketLabel(iso: string, grain: Grain): string {
   const d = new Date(iso);
   if (grain === "day") return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  if (grain === "hour") {
+    // include the date — hour-only labels are meaningless across days
+    const day = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    return `${day} ${time}`;
+  }
   return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
@@ -80,6 +86,14 @@ export function fullLabel(iso: string, grain: Grain): string {
   if (grain === "day") return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
   if (grain === "hour") return d.toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" });
   return d.toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+// "30 Sep, 14:05" — unambiguous local timestamp for range subtitles
+export function stampLabel(iso: string): string {
+  const d = new Date(iso);
+  const day = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return `${day}, ${time}`;
 }
 
 export const GRAIN_MS: Record<Grain, number> = {

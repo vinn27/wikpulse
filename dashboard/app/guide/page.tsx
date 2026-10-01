@@ -79,6 +79,12 @@ export default function GuidePage() {
           chart's grain; <em>All data</em> + Day shows the full history.
         </p>
         <p>
+          <strong style={{ color: "var(--ink)" }}>Long ranges scroll</strong> — with lots of history the chart
+          keeps bars readable and scrolls sideways (newest data sits on the right and loads into view
+          automatically). Hour and day labels always show their date, and the card header shows the exact
+          covered time range in your local time.
+        </p>
+        <p>
           <strong style={{ color: "var(--ink)" }}>Focus mode (⤢)</strong> — expand any visual fullscreen, with
           its complete data table underneath (nothing is hidden behind tooltips). Close with ✕ or <kbd>Esc</kbd>.
         </p>

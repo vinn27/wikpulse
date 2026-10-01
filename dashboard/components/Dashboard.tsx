@@ -18,6 +18,7 @@ import {
   fmtPct,
   fullLabel,
   GRAIN_MS,
+  stampLabel,
   type Audience,
   type Grain,
   type PageRow,
@@ -383,6 +384,13 @@ export default function Dashboard() {
               Edit volume over time
               <span className="ml-2 font-normal text-xs" style={{ color: "var(--muted)" }}>
                 each column = one {view.grain} · blue = people, orange = bots · click a column to filter
+                {view.rows.length > 1 && (
+                  <>
+                    {" "}· showing{" "}
+                    {stampLabel(view.rows[0].t)} → {stampLabel(view.rows[view.rows.length - 1].t)}{" "}
+                    (your local time)
+                  </>
+                )}
               </span>
             </h2>
             <div className="flex items-center gap-3">
@@ -530,7 +538,7 @@ export default function Dashboard() {
             rows={view.rows}
             grain={view.grain}
             audience={audience}
-            height={Math.min(560, Math.max(320, view.rows.length * 14))}
+            height={460}
             selectedLabel={view.effSel?.label ?? null}
             onBucketClick={onBucketClick}
           />
