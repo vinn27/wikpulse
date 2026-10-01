@@ -1,17 +1,26 @@
 name: keepalive
 
-# GitHub disables scheduled workflows after 60 days without a repo commit.
-# This monthly no-op keeps the cron schedule alive so the pipeline (and the
-# dashboard built on it) never silently dies.
+# GitHub disables SCHEDULED workflows after 60 days without a repo commit.
+# Monthly empty commit keeps schedules alive. Self-contained (the third-party
+# action this used to rely on was deleted from GitHub — never again).
 
 on:
   schedule:
     - cron: "13 4 1 * *" # 1st of every month (off-peak minute)
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   keepalive:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: gastonpelletier/keepalive-workflow@v1
+
+      - name: Monthly empty commit
+        run: |
+          git config user.name "keepalive-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git commit --allow-empty -m "keepalive: monthly activity so scheduled workflows stay enabled"
+          git push
