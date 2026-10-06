@@ -168,6 +168,30 @@ DELETE FROM edit_windows WHERE window_start < now() - interval '7 days';
 # project over its storage quota ("Your account or project has exceeded the
 # quota"), which took the whole pipeline down.
 
+PRUNE_AGGRESSIVE_SQL = """
+DELETE FROM top_pages  WHERE window_start < now() - interval '2 days';
+DELETE FROM edit_windows WHERE window_start < now() - interval '2 days';
+"""
+# free tier gives 0.5 GB per project. routine usage should stay far below
+# that, but if storage ever crosses ~80% (WAL + indexes count toward Neon's
+# measurement, pg_database_size is the closest in-database proxy), shorten
+# the retention to 2 days immediately - the dashboard's default view is 48h,
+# so even this keeps the visible product intact.
+STORAGE_SOFT_LIMIT_BYTES = 400 * 1024 * 1024
+
+
+def storage_report_and_guard(cur):
+    """Log DB size; if past the soft limit, prune to 2 days of history."""
+    cur.execute("SELECT pg_database_size(current_database())")
+    used = cur.fetchone()[0]
+    print(f"db_size_mb={used / 1e6:.1f}")
+    if used < STORAGE_SOFT_LIMIT_BYTES:
+        return
+    print("storage above soft limit - pruning to 2-day retention")
+    cur.execute(PRUNE_AGGRESSIVE_SQL)
+    cur.execute("SELECT pg_database_size(current_database())")
+    print(f"db_size_mb_after_guard={cur.fetchone()[0] / 1e6:.1f}")
+
 
 def load_to_neon(windows, top_pages):
     # Neon cold starts (scale-to-zero) occasionally refuse the first dial -
@@ -197,6 +221,7 @@ def load_to_neon(windows, top_pages):
                  for r in top_pages],
             )
             cur.execute(PRUNE_SQL)
+            storage_report_and_guard(cur)
         conn.commit()
     finally:
         conn.close()
