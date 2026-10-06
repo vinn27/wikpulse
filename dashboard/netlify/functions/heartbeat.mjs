@@ -1,13 +1,18 @@
 // WikiPulse heartbeat — a Netlify Scheduled Function that pings GitHub's
-// repository_dispatch API every 10 minutes. GitHub drops most *scheduled*
+// repository_dispatch API every 30 minutes. GitHub drops most *scheduled*
 // workflow runs at high load, but API-triggered runs are never dropped —
-// this keeps the pipeline's 10-minute cadence reliable.
+// this keeps the pipeline's cadence reliable.
+//
+// Cadence was 10 min until 2026-10-06: each pipeline run wakes the Neon
+// compute for ~5 min (autosuspend), so 144 runs/day burned ~13 compute-hours
+// and exhausted the free-tier quota within days. 30 min keeps the same
+// 1-minute aggregation windows (a run just covers 30 min of events).
 //
 // Requires HEARTBEAT_PAT (fine-grained PAT: repo wikpulse, Actions RW)
 // in the Netlify site's environment.
 
 export const config = {
-  schedule: "4,14,24,34,44,54 * * * *", // every 10 min, off-peak minutes (UTC)
+  schedule: "4,34 * * * *", // every 30 min, off-peak minutes (UTC)
 };
 
 export default async () => {
