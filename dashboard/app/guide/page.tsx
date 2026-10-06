@@ -127,7 +127,7 @@ export default function GuidePage() {
         </div>
         <div>
           <dt className="font-medium" style={{ color: "var(--ink)" }}>Data as of</dt>
-          <dd>When the pipeline last wrote. Refreshes every 30 seconds; the pipeline ingests every 10 minutes.</dd>
+          <dd>When the pipeline last wrote. Refreshes every 30 seconds; the pipeline ingests every 30 minutes.</dd>
         </div>
       </dl>
 

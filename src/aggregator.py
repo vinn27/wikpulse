@@ -64,14 +64,8 @@ ON CONFLICT (window_start, page_title) DO UPDATE SET
 """
 
 
-def consume_batch(max_seconds: int = 60):
-    """Poll the topic until it goes quiet, return decoded events.
-
-    A fixed group.id + committed offsets means each run only sees messages
-    produced since the previous run - re-processing needs a deliberate offset
-    reset, never happens by accident.
-    """
-    consumer = Consumer({
+def make_consumer():
+    return Consumer({
         "bootstrap.servers": os.environ["REDPANDA_BROKER"],
         "security.protocol": "SASL_SSL",
         "sasl.mechanisms": "SCRAM-SHA-256",
@@ -79,11 +73,26 @@ def consume_batch(max_seconds: int = 60):
         "sasl.password": os.environ["REDPANDA_PASSWORD"],
         "group.id": GROUP,
         "auto.offset.reset": "earliest",  # first-ever run reads from the start
-        "enable.auto.commit": True,
+        # OFFSETS ARE COMMITTED MANUALLY, ONLY AFTER A SUCCESSFUL NEON LOAD.
+        # With auto-commit, a failed DB write used to skip the batch forever
+        # (36 quota-failed runs each dropped their ~680 events). Offsetting
+        # after the load gives at-least-once; the rcid dedup + upserts make
+        # redelivery harmless.
+        "enable.auto.commit": False,
     })
+
+
+def poll_batch(consumer, max_seconds: int = 60):
+    """Poll the topic until it goes quiet.
+
+    Returns (events, offsets) where offsets are the next-to-consume positions
+    per partition - the caller commits them only after the data is safely in
+    Postgres.
+    """
     consumer.subscribe([TOPIC])
 
     events = []
+    offsets = {}
     idle_rounds = 0
     # partition assignment (group join over SASL/SSL) can take 10s+ on a
     # fresh consumer - stay patient through the quiet start, only bail once
@@ -97,9 +106,9 @@ def consume_batch(max_seconds: int = 60):
             continue
         idle_rounds = 0
         events.append(json.loads(msg.value()))
+        offsets[msg.partition()] = msg.offset() + 1
 
-    consumer.close()  # commits offsets
-    return events
+    return events, offsets
 
 
 def aggregate(events):
@@ -150,8 +159,29 @@ def to_utc(dt):
     return dt.replace(tzinfo=timezone.utc)
 
 
+PRUNE_SQL = """
+DELETE FROM top_pages  WHERE window_start < now() - interval '7 days';
+DELETE FROM edit_windows WHERE window_start < now() - interval '7 days';
+"""
+# the dashboard only ever reads the last 48h/7d, so rows older than that are
+# dead weight. Without this the tables grew forever and pushed the Neon free
+# project over its storage quota ("Your account or project has exceeded the
+# quota"), which took the whole pipeline down.
+
+
 def load_to_neon(windows, top_pages):
-    conn = psycopg2.connect(os.environ["DATABASE_URL"])
+    # Neon cold starts (scale-to-zero) occasionally refuse the first dial -
+    # retry a couple of times before giving up so a wake-up blip doesn't fail
+    # the run (a quota error still fails, as it should).
+    conn = None
+    for attempt in range(3):
+        try:
+            conn = psycopg2.connect(os.environ["DATABASE_URL"])
+            break
+        except psycopg2.OperationalError:
+            if attempt == 2:
+                raise
+            time.sleep(5)
     try:
         with conn.cursor() as cur:
             cur.execute(SCHEMA_FILE.read_text())
@@ -166,21 +196,34 @@ def load_to_neon(windows, top_pages):
                 [(to_utc(r["window_start"]), r["title"], r["edits"], r["net_bytes"])
                  for r in top_pages],
             )
+            cur.execute(PRUNE_SQL)
         conn.commit()
     finally:
         conn.close()
 
 
 def main():
-    events = consume_batch()
-    if not events:
-        print("consumed=0 nothing to do")
-        return
-    print(f"consumed={len(events)}")
+    consumer = make_consumer()
+    try:
+        events, offsets = poll_batch(consumer)
+        if not events:
+            print("consumed=0 nothing to do")
+            return
+        print(f"consumed={len(events)}")
 
-    windows, top_pages = aggregate(events)
-    load_to_neon(windows, top_pages)
-    print(f"windows_upserted={len(windows)} top_pages_upserted={len(top_pages)}")
+        windows, top_pages = aggregate(events)
+        load_to_neon(windows, top_pages)
+        print(f"windows_upserted={len(windows)} top_pages_upserted={len(top_pages)}")
+
+        # only now that Postgres has the data: commit the consumer group's
+        # offsets so a failed load replays this batch on the next run
+        from confluent_kafka import TopicPartition
+        consumer.commit(
+            offsets=[TopicPartition(TOPIC, p, o) for p, o in offsets.items()],
+            asynchronous=False,
+        )
+    finally:
+        consumer.close()
 
 
 if __name__ == "__main__":

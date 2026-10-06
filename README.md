@@ -33,15 +33,20 @@ Actions, never in code.
 ## How it runs
 
 A [scheduled GitHub Actions workflow](.github/workflows/pipeline.yml) fires
-every 10 minutes on GitHub's free runners (public repo = free minutes): it
-pulls the last 15 minutes of en-wiki edits (the extra 5 minutes absorb GitHub's
+every 30 minutes on GitHub's free runners (public repo = free minutes): it
+pulls the last 35 minutes of en-wiki edits (the extra 5 minutes absorb GitHub's
 cron jitter — duplicate edits are dropped by `rcid`), publishes them to
-Redpanda, and aggregates with PySpark into Neon. Both scripts exit non-zero on
+Redpanda, and aggregates with PySpark into Neon. Aggregation still produces
+1-minute windows — a run just covers 30 minutes of events at once, and the
+slower cadence keeps the Neon free-tier compute quota sustainable. Old
+partitions are pruned after 7 days (the dashboard never reads further back).
+Both scripts exit non-zero on
 failure, so a broken run shows red in the Actions history rather than failing
-silently.
+silently. Kafka offsets are committed only after a successful DB load, so a
+failed run replays its batch instead of dropping it.
 
 Honesty notes: GitHub cron runs can lag by several minutes at busy times, so
-"every 10 minutes" is approximate; and a monthly
+"every 30 minutes" is approximate; and a monthly
 [keepalive workflow](.github/workflows/keepalive.yml) stops GitHub from
 auto-disabling the schedule after 60 days of repo inactivity.
 

@@ -234,7 +234,7 @@ export default function Dashboard() {
   // data-freshness guard: warn loudly instead of silently blanking
   const newestMinute = data.minutes.length ? Date.parse(data.minutes[data.minutes.length - 1].t) : 0;
   const staleMin = Math.round((view.nowMs - newestMinute) / 60_000);
-  const isStale = newestMinute === 0 || staleMin > 15;
+  const isStale = newestMinute === 0 || staleMin > 45; // pipeline runs every 30 min; warn past one cycle + lag
   const lastWriteLabel = newestMinute
     ? new Date(newestMinute).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
     : "never";
@@ -501,7 +501,7 @@ export default function Dashboard() {
           <dl className="mt-3 grid gap-x-8 gap-y-2.5 md:grid-cols-2">
             <div>
               <dt className="font-medium" style={{ color: "var(--ink)" }}>What is being measured?</dt>
-              <dd>Every edit made to English Wikipedia articles — public data from Wikipedia's RecentChanges API, collected automatically every 10 minutes.</dd>
+              <dd>Every edit made to English Wikipedia articles — public data from Wikipedia's RecentChanges API, collected automatically every 30 minutes.</dd>
             </div>
             <div>
               <dt className="font-medium" style={{ color: "var(--ink)" }}>Human vs bot</dt>

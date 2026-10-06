@@ -4,10 +4,14 @@ on:
   schedule:
     # backup trigger — GitHub's scheduler drops most runs at high load;
     # the primary trigger is repository_dispatch from an external heartbeat
-    # (cron-job.org -> GitHub API every 10 min)
-    - cron: "7,17,27,37,47,57 * * * *"
+    # (cron-job.org -> GitHub API). Cadence moved 10 min -> 30 min: each run
+    # wakes the Neon compute for ~5 min (autosuspend), so 144 runs/day burned
+    # ~13 compute-hours/day and blew the free-tier quota in under a week.
+    # 1-minute aggregation windows are unchanged — a run just covers 30 min
+    # of events at once.
+    - cron: "7,37 * * * *"
   repository_dispatch:
-    types: [tick] # external heartbeat - reliable 10-min cadence
+    types: [tick] # external heartbeat (set cron-job.org to every 30 min too!)
   workflow_dispatch: # manual "Run workflow" button
 
 concurrency:
@@ -40,7 +44,7 @@ jobs:
           REDPANDA_BROKER: ${{ secrets.REDPANDA_BROKER }}
           REDPANDA_USER: ${{ secrets.REDPANDA_USER }}
           REDPANDA_PASSWORD: ${{ secrets.REDPANDA_PASSWORD }}
-          LOOKBACK_MIN: "15" # > cron interval: overlap covers GitHub cron delays; rcid dedup absorbs duplicates
+          LOOKBACK_MIN: "35" # > 30-min cadence: overlap covers delays/gaps; rcid dedup absorbs duplicates
         run: python src/producer.py
 
       - name: Aggregate (Redpanda -> PySpark -> Neon)
